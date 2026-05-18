@@ -863,7 +863,7 @@
 <div class="modal-back" id="swap-modal">
   <div class="modal">
     <h2>Block your opponent!</h2>
-    <p>Pick any empty slot on your opponent's board (the red, shaking ones). They'll have to clear your wasteful card before they can win!</p>
+    <p>Drop this Wasteful card on the matching stage slot (if empty) on your opponent's board. They'll have to cover or clear it before they can win!</p>
     <div class="picker" id="swap-targets"></div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="cancelSwap()">Cancel</button>
@@ -914,7 +914,7 @@
       <ol>
         <li><strong>On your turn</strong>, click the deck (or the discard pile) to draw a card.</li>
         <li><strong>Green Way</strong> cards go on YOUR board. Click a glowing slot to place it.</li>
-        <li><strong>Wasteful</strong> cards can be dropped on <em>any empty slot</em> on your opponent's board to block their progress.</li>
+        <li><strong>Wasteful</strong> cards can be dropped on your opponent's matching stage slot (if empty) to block their progress.</li>
         <li>💪 If a wasteful card is blocking one of YOUR slots, you can cover it with a matching Green card — just place as normal!</li>
         <li>Or clear a wasteful card from your board (no draw) by clicking it at the start of your turn.</li>
         <li><strong>Stage 1 (Device)</strong> and <strong>Stage 2 (Action)</strong> must be a matching pair (e.g. Laptop + Reuse).</li>
@@ -1405,6 +1405,7 @@ function handleAction(action, fromRole) {
       const slot = action.slot;
       if (slot < 0 || slot > 7) return;
       if (opp.tableau[slot] !== null) return;        // must be empty
+      if (state.drawn.stage !== slot + 1) return;    // stage must match the slot
       opp.tableau[slot] = state.drawn;
       pushLog(player.name + ' blocked ' + opp.name + "'s stage " + (slot+1) + ' with ' + state.drawn.name + '! 😱', fromRole);
       state.drawn = null;
@@ -1647,12 +1648,11 @@ function findPlaceableSlots(player, card) {
 }
 
 function findBlockTargets(opp, wasteCard) {
-  // Wasteful cards can BLOCK any empty slot on the opponent's board.
-  // (Stage 8 / Champion slot is included — block the win!)
+  // Wasteful cards can only block the slot matching their stage.
   const targets = [];
-  for (let i = 0; i < 8; i++) {
-    if (opp.tableau[i] !== null) continue;     // slot already has something
-    targets.push(i);
+  const slot = wasteCard.stage - 1;
+  if (slot >= 0 && slot <= 7 && opp.tableau[slot] === null) {
+    targets.push(slot);
   }
   return targets;
 }
