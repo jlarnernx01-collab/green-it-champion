@@ -401,6 +401,54 @@
     font-weight: 800;
     color: var(--green-deep);
   }
+
+  /* Why? button — small ? icon shown on the large drawn card */
+  .why-btn {
+    background: var(--paper);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    width: 32px; height: 32px;
+    display: inline-grid; place-items: center;
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: 18px;
+    cursor: pointer;
+    box-shadow: 0 2px 0 var(--ink);
+    transition: transform 0.1s;
+    line-height: 1;
+  }
+  .why-btn:hover { transform: translateY(-2px); }
+  .why-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--ink); }
+  .why-btn.large {
+    width: 40px; height: 40px; font-size: 22px;
+  }
+
+  /* Slot becomes "clickable for info" — soft cursor cue */
+  .slot.clickable-info {
+    cursor: help;
+  }
+  .slot.clickable-info:hover {
+    transform: translateY(-2px);
+    transition: transform 0.15s;
+  }
+
+  /* Why modal — bigger card preview */
+  .modal.why {
+    text-align: center;
+  }
+  .why-card-preview {
+    width: 140px;
+    height: 200px;
+    margin: 0 auto 16px;
+  }
+  .why-card-preview .card {
+    border-radius: 14px;
+  }
+  .why-card-preview .card .icon { font-size: 56px; }
+  .why-card-preview .card .name { font-size: 14px; }
+  .why-card-preview .card .stage { font-size: 11px; }
+  .why-card-preview .card .pill { font-size: 9px; padding: 3px 8px; }
   @keyframes bounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-4px);} }
   @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-3px);} 75%{transform:translateX(3px);} }
 
@@ -786,6 +834,18 @@
   </div>
 </div>
 
+<!-- ========== WHY? EXPLANATION MODAL ========== -->
+<div class="modal-back" id="why-modal">
+  <div class="modal why">
+    <div class="why-card-preview" id="why-card-preview"></div>
+    <h2 id="why-title">Why?</h2>
+    <p id="why-text" style="font-size: 16px; line-height: 1.5;"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideWhy()">Got it!</button>
+    </div>
+  </div>
+</div>
+
 <!-- ========== WIN/LOSE MODAL ========== -->
 <div class="modal-back" id="end-modal">
   <div class="modal" id="end-modal-content">
@@ -820,6 +880,7 @@
         <li><strong>Wasteful</strong> cards can be used to <em>block</em> an empty slot on your opponent's board — they'll have to clear it before they can win!</li>
         <li>If a wasteful card is blocking one of YOUR slots, click it at the start of your turn to clear it (this uses your turn, no draw).</li>
         <li><strong>Stage 1 (Device)</strong> and <strong>Stage 2 (Action)</strong> must be a matching pair (e.g. Laptop + Reuse).</li>
+        <li>💡 Click <strong>any card</strong> (on the board or in your hand) to learn <strong>why</strong> it's green or wasteful!</li>
         <li>First to collect all 8 Green Way cards — with matching device + action — shouts "GREEN!" and wins! 🌍</li>
       </ol>
     </div>
@@ -838,37 +899,47 @@
 // Stage 8 is the Champion winning card.
 
 const DEVICES = [
-  { id: 'laptop',    name: 'Old Laptop',     icon: '💻' },
-  { id: 'tablet',    name: 'School Tablet',  icon: '📱' },
-  { id: 'phone',     name: 'Smartphone',     icon: '📞' },
-  { id: 'console',   name: 'Games Console',  icon: '🎮' },
-  { id: 'desktop',   name: 'Desktop PC',     icon: '🖥️' },
+  { id: 'laptop',    name: 'Old Laptop',     icon: '💻', why: "Laptops use lots of energy and materials to make. The more we keep using one, the less new ones we need to build." },
+  { id: 'tablet',    name: 'School Tablet',  icon: '📱', why: "Tablets contain rare metals dug up from the earth. Every tablet we look after means less mining for new ones." },
+  { id: 'phone',     name: 'Smartphone',     icon: '📞', why: "A smartphone takes around 70kg of raw materials to make — but most people only use one for 2-3 years!" },
+  { id: 'console',   name: 'Games Console',  icon: '🎮', why: "Consoles are packed with valuable electronics. Throwing them away wastes all of that — and the energy used to make them." },
+  { id: 'desktop',   name: 'Desktop PC',     icon: '🖥️', why: "Desktop PCs have big metal cases, circuit boards full of gold and copper, and parts that can keep working for years." },
 ];
 
 const GREEN_ACTIONS = {
-  laptop:  { name: 'Reuse',          icon: '♻️', desc: 'Wipe & pass on' },
-  tablet:  { name: 'Repurpose',      icon: '🖼️', desc: 'Photo frame!' },
-  phone:   { name: 'Resell',         icon: '💰', desc: 'Trade in' },
-  console: { name: 'Repair',         icon: '🔧', desc: 'Fix it!' },
-  desktop: { name: 'Recycle Parts',  icon: '⚙️', desc: 'Save metals' },
+  laptop:  { name: 'Reuse',          icon: '♻️', desc: 'Wipe & pass on',     why: "Wiping a laptop and giving it to someone else means it keeps doing useful work — and no new laptop has to be built for them." },
+  tablet:  { name: 'Repurpose',      icon: '🖼️', desc: 'Photo frame!',       why: "An old tablet can become a digital photo frame, e-reader, or recipe screen. Same hardware, brand new job!" },
+  phone:   { name: 'Resell',         icon: '💰', desc: 'Trade in',           why: "Selling or trading in your phone gets you some money back AND keeps a working phone out of landfill. Win-win!" },
+  console: { name: 'Repair',         icon: '🔧', desc: 'Fix it!',            why: "Most broken consoles only need a small fix — a new fan, a clean, a replacement controller. Repair is almost always cheaper than buying new." },
+  desktop: { name: 'Recycle Parts',  icon: '⚙️', desc: 'Save metals',        why: "Old PCs contain gold, copper, and aluminium that can be melted down and used again. Recycling means we mine less of the earth." },
 };
 const WASTE_ACTIONS = {
-  laptop:  { name: 'Dump in Attic',  icon: '📦', desc: 'Forgotten' },
-  tablet:  { name: 'Smash it',       icon: '💥', desc: 'Wasted!' },
-  phone:   { name: 'Bin it',         icon: '🗑️', desc: 'Lost forever' },
-  console: { name: 'Replace',        icon: '🛒', desc: 'Buy new!' },
-  desktop: { name: 'Landfill',       icon: '☠️', desc: 'Pollutes!' },
+  laptop:  { name: 'Dump in Attic',  icon: '📦', desc: 'Forgotten',          why: "An attic laptop helps nobody. Its battery slowly leaks, materials degrade, and one day it just becomes more landfill." },
+  tablet:  { name: 'Smash it',       icon: '💥', desc: 'Wasted!',            why: "Smashed tablets release toxic chemicals from their batteries and screens. All those expensive materials — wasted." },
+  phone:   { name: 'Bin it',         icon: '🗑️', desc: 'Lost forever',       why: "A binned phone ends up in landfill where its battery can leak heavy metals into the soil and water." },
+  console: { name: 'Replace',        icon: '🛒', desc: 'Buy new!',           why: "Buying a brand new console when the old one could be fixed wastes money AND makes the planet pay for new manufacturing." },
+  desktop: { name: 'Landfill',       icon: '☠️', desc: 'Pollutes!',          why: "Landfilled electronics leak lead, mercury, and other toxic stuff into the ground for hundreds of years." },
 };
 
 const HABITS = [
-  { stage: 3, green: { name: 'Energy Saver On', icon: '🍃' },        waste: { name: 'Energy Guzzler',   icon: '🔥' } },
-  { stage: 4, green: { name: 'Unplug When Done', icon: '🔌' },        waste: { name: 'Always Plugged In', icon: '⚡' } },
-  { stage: 5, green: { name: 'Share Cloud Storage', icon: '☁️' },     waste: { name: 'Files Everywhere',  icon: '🗂️' } },
-  { stage: 6, green: { name: 'Repair, Not Replace', icon: '🔧' },     waste: { name: 'Bin at First Fault', icon: '🗑️' } },
-  { stage: 7, green: { name: 'Take to E-Waste', icon: '♻️' },         waste: { name: 'Regular Bin',       icon: '☠️' } },
+  { stage: 3,
+    green: { name: 'Energy Saver On', icon: '🍃', why: "Energy-saving settings (dim screen, quick sleep, eco mode) can cut a device's energy use by half. Less electricity = less pollution from power stations." },
+    waste: { name: 'Energy Guzzler',  icon: '🔥', why: "Full brightness, never sleeping, fans roaring — guzzlers waste loads of electricity, which mostly comes from burning fuel and releasing CO₂." } },
+  { stage: 4,
+    green: { name: 'Unplug When Done', icon: '🔌', why: "Even when 'off', many chargers and devices still draw power — it's called phantom load. Unplugging stops the leak." },
+    waste: { name: 'Always Plugged In', icon: '⚡', why: "Leaving things plugged in 24/7 costs households about £30 a year in wasted electricity AND adds to power station emissions." } },
+  { stage: 5,
+    green: { name: 'Share Cloud Storage', icon: '☁️', why: "Cloud servers are MUCH more energy-efficient per file than every person running their own backup drive. Sharing storage saves energy." },
+    waste: { name: 'Files Everywhere',    icon: '🗂️', why: "Duplicating files on every device wastes storage, needs more drives, and means more devices have to be powered to keep everything in sync." } },
+  { stage: 6,
+    green: { name: 'Repair, Not Replace', icon: '🔧', why: "Repairing keeps devices in use longer, which is the single biggest thing you can do to reduce tech's environmental impact." },
+    waste: { name: 'Bin at First Fault',  icon: '🗑️', why: "Binning a device at the first tiny fault means all the energy used to make it is wasted — and you have to buy a new one." } },
+  { stage: 7,
+    green: { name: 'Take to E-Waste', icon: '♻️', why: "E-waste centres safely recover metals and dispose of toxic parts. In the UK you can find one at Recycle Now or your local council site." },
+    waste: { name: 'Regular Bin',     icon: '☠️', why: "Electronics in regular bins go to landfill or incineration, where toxic materials escape into the air, soil, and water." } },
 ];
 
-const CHAMPION_CARD = { stage: 8, green: { name: 'GREEN IT CHAMPION!', icon: '🌍' } };
+const CHAMPION_CARD = { stage: 8, green: { name: 'GREEN IT CHAMPION!', icon: '🌍', why: "You did it! By choosing reuse, repair, and recycling, you've shown that everyday choices add up to a healthier planet. Every device you keep in use is a small win for the environment." } };
 
 const STAGE_LABELS = ['Device','Action','Habit 3','Habit 4','Habit 5','Habit 6','Habit 7','Champion'];
 
@@ -879,8 +950,8 @@ function buildDeck() {
   // Stage 1 cards: each device, green + waste, x2 each
   DEVICES.forEach(d => {
     for (let i = 0; i < 2; i++) {
-      deck.push({ kind: 'green', stage: 1, deviceId: d.id, name: d.name, icon: d.icon });
-      deck.push({ kind: 'waste', stage: 1, deviceId: d.id, name: d.name, icon: d.icon });
+      deck.push({ kind: 'green', stage: 1, deviceId: d.id, name: d.name, icon: d.icon, why: d.why });
+      deck.push({ kind: 'waste', stage: 1, deviceId: d.id, name: d.name, icon: d.icon, why: d.why });
     }
   });
 
@@ -889,22 +960,22 @@ function buildDeck() {
     for (let i = 0; i < 2; i++) {
       const g = GREEN_ACTIONS[d.id];
       const w = WASTE_ACTIONS[d.id];
-      deck.push({ kind: 'green', stage: 2, deviceId: d.id, name: g.name, icon: g.icon, desc: g.desc });
-      deck.push({ kind: 'waste', stage: 2, deviceId: d.id, name: w.name, icon: w.icon, desc: w.desc });
+      deck.push({ kind: 'green', stage: 2, deviceId: d.id, name: g.name, icon: g.icon, desc: g.desc, why: g.why });
+      deck.push({ kind: 'waste', stage: 2, deviceId: d.id, name: w.name, icon: w.icon, desc: w.desc, why: w.why });
     }
   });
 
   // Stages 3-7: each green and waste version, x3 each
   HABITS.forEach(h => {
     for (let i = 0; i < 3; i++) {
-      deck.push({ kind: 'green', stage: h.stage, name: h.green.name, icon: h.green.icon });
-      deck.push({ kind: 'waste', stage: h.stage, name: h.waste.name, icon: h.waste.icon });
+      deck.push({ kind: 'green', stage: h.stage, name: h.green.name, icon: h.green.icon, why: h.green.why });
+      deck.push({ kind: 'waste', stage: h.stage, name: h.waste.name, icon: h.waste.icon, why: h.waste.why });
     }
   });
 
   // Stage 8: Champion card, x4
   for (let i = 0; i < 4; i++) {
-    deck.push({ kind: 'champion', stage: 8, name: CHAMPION_CARD.green.name, icon: CHAMPION_CARD.green.icon });
+    deck.push({ kind: 'champion', stage: 8, name: CHAMPION_CARD.green.name, icon: CHAMPION_CARD.green.icon, why: CHAMPION_CARD.green.why });
   }
 
   return deck;
@@ -1412,8 +1483,23 @@ function renderGame() {
     drawnPrompt.innerHTML = 'You drew a <strong>' + (state.drawn.kind === 'green' ? 'Green' : state.drawn.kind === 'waste' ? 'Wasteful' : 'Champion') + '</strong> card!';
     const wrap = document.createElement('div');
     wrap.className = 'hand-card-wrapper';
-    wrap.appendChild(renderCard(state.drawn, 'large'));
+    const cardEl = renderCard(state.drawn, 'large');
+    if (state.drawn.why) {
+      cardEl.style.cursor = 'help';
+      cardEl.title = 'Click to learn why';
+      cardEl.onclick = () => showWhy(state.drawn);
+    }
+    wrap.appendChild(cardEl);
     drawnArea.insertBefore(wrap, drawnPrompt);
+
+    // Always add a Why? button so kids can read the explanation before deciding
+    if (state.drawn.why) {
+      const whyBtn = document.createElement('button');
+      whyBtn.className = 'btn ghost';
+      whyBtn.innerHTML = '❓ Why?';
+      whyBtn.onclick = () => showWhy(state.drawn);
+      cardActions.appendChild(whyBtn);
+    }
 
     if (state.drawn.kind === 'green' || state.drawn.kind === 'champion') {
       const placeable = findPlaceableSlots(me, state.drawn);
@@ -1576,6 +1662,14 @@ function renderSlots(elementId, player, isMe) {
       slot.title = 'Matched pair — locked in!';
     }
 
+    // Fallback: if the slot has a card and no special action is wired up, clicking opens the Why? explanation.
+    if (player.tableau[i] && !slot.onclick) {
+      slot.classList.add('clickable-info');
+      slot.title = 'Click to learn why';
+      const cardRef = player.tableau[i];
+      slot.onclick = () => showWhy(cardRef);
+    }
+
     container.appendChild(slot);
   }
 }
@@ -1630,6 +1724,36 @@ function showBlockModal() {
 }
 function hideBlockModal() { document.getElementById('swap-modal').classList.remove('active'); }
 function cancelSwap() { hideBlockModal(); }
+
+// =========================================================================
+//   WHY? EXPLANATION MODAL
+// =========================================================================
+function showWhy(card) {
+  if (!card || !card.why) return;
+  const modal = document.getElementById('why-modal');
+  const preview = document.getElementById('why-card-preview');
+  const title = document.getElementById('why-title');
+  const text = document.getElementById('why-text');
+
+  preview.innerHTML = '';
+  preview.appendChild(renderCard(card, 'medium'));
+
+  // Title varies by card kind
+  if (card.kind === 'green') {
+    title.textContent = 'Why is this Green? 🌱';
+    title.style.color = 'var(--green-deep)';
+  } else if (card.kind === 'waste') {
+    title.textContent = 'Why is this Wasteful? 🚫';
+    title.style.color = 'var(--red-deep)';
+  } else {
+    title.textContent = 'You did it! 🏆';
+    title.style.color = 'var(--gold-deep)';
+  }
+
+  text.textContent = card.why;
+  modal.classList.add('active');
+}
+function hideWhy() { document.getElementById('why-modal').classList.remove('active'); }
 
 // =========================================================================
 //   END / REMATCH MODAL
