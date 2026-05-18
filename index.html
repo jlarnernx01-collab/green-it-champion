@@ -343,6 +343,64 @@
     cursor: pointer;
     animation: shake 0.5s ease-in-out infinite;
   }
+  .slot.locked {
+    border-color: var(--gold);
+    border-style: solid;
+    border-width: 3px;
+    box-shadow: 0 0 0 2px var(--gold-deep), 0 0 20px rgba(245, 184, 0, 0.3);
+    position: relative;
+  }
+  .slot.locked::before {
+    content: "🔒";
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 18px;
+    background: var(--gold);
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    display: grid; place-items: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    z-index: 2;
+  }
+
+  .pair-hint {
+    background: linear-gradient(90deg, rgba(245, 184, 0, 0.18), rgba(164, 217, 119, 0.18));
+    border: 2px dashed var(--gold-deep);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 14px;
+  }
+  .pair-hint .hint-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .pair-hint .hint-text { flex: 1; }
+  .pair-hint .hint-text strong {
+    color: var(--green-deep);
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+  }
+  .pair-hint .hint-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 3px 8px;
+    margin: 0 2px;
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+    color: var(--green-deep);
+  }
   @keyframes bounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-4px);} }
   @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-3px);} 75%{transform:translateX(3px);} }
 
@@ -701,6 +759,7 @@
       <span>Your Board — collect all 8!</span>
       <button class="btn gold small" id="green-shout-btn" onclick="shoutGreen()" disabled>🏆 SHOUT "GREEN!"</button>
     </h3>
+    <div class="pair-hint" id="pair-hint" style="display:none;"></div>
     <div class="slots" id="me-slots"></div>
   </div>
 
@@ -711,15 +770,15 @@
   </div>
 
   <div class="quick-rules">
-    <strong>Green = Good · Red = Wasteful · Gold = Champion!</strong> Stage 1 (Device) and Stage 2 (Action) must match. Wasteful cards can replace an opponent's Green card — they'll need to fix it back!
+    <strong>Green = Good · Red = Wasteful · Gold = Champion!</strong> Stage 1 (Device) and Stage 2 (Action) must match. Wasteful cards can BLOCK an empty slot on the opponent's board — they'll have to clear it before they can win!
   </div>
 </div>
 
-<!-- ========== SWAP TARGET PICKER ========== -->
+<!-- ========== BLOCK TARGET PICKER ========== -->
 <div class="modal-back" id="swap-modal">
   <div class="modal">
-    <h2>Swap a card!</h2>
-    <p>Pick one of your opponent's Green cards to replace with this Wasteful one.</p>
+    <h2>Block your opponent!</h2>
+    <p>Pick an empty slot on your opponent's board to drop this Wasteful card on. They'll have to clear it before they can win!</p>
     <div class="picker" id="swap-targets"></div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="cancelSwap()">Cancel</button>
@@ -757,8 +816,9 @@
     <div class="rules">
       <ol>
         <li><strong>On your turn</strong>, click the deck (or the discard pile) to draw a card.</li>
-        <li><strong>Green Way</strong> cards go on YOUR board. Click an empty matching stage slot to place it.</li>
-        <li><strong>Wasteful</strong> cards can be used to <em>swap out</em> one of your opponent's Green cards (yuck!) — or just discarded.</li>
+        <li><strong>Green Way</strong> cards go on YOUR board. Click a glowing slot to place it.</li>
+        <li><strong>Wasteful</strong> cards can be used to <em>block</em> an empty slot on your opponent's board — they'll have to clear it before they can win!</li>
+        <li>If a wasteful card is blocking one of YOUR slots, click it at the start of your turn to clear it (this uses your turn, no draw).</li>
         <li><strong>Stage 1 (Device)</strong> and <strong>Stage 2 (Action)</strong> must be a matching pair (e.g. Laptop + Reuse).</li>
         <li>First to collect all 8 Green Way cards — with matching device + action — shouts "GREEN!" and wins! 🌍</li>
       </ol>
@@ -1132,14 +1192,19 @@ function discardCard() {
   sendOrApplyAction({ type: 'discard' });
 }
 
-function startSwap() {
+function startBlock() {
   if (!isMyTurn() || !state.drawn || state.drawn.kind !== 'waste') return;
-  showSwapModal();
+  showBlockModal();
 }
 
-function executeSwap(slotIdx) {
-  hideSwapModal();
-  sendOrApplyAction({ type: 'swap', slot: slotIdx });
+function executeBlock(slotIdx) {
+  hideBlockModal();
+  sendOrApplyAction({ type: 'block', slot: slotIdx });
+}
+
+function clearWaste(slotIdx) {
+  if (!isMyTurn() || state.drawn) return;
+  sendOrApplyAction({ type: 'clear-waste', slot: slotIdx });
 }
 
 function shoutGreen() {
@@ -1218,26 +1283,30 @@ function handleAction(action, fromRole) {
       endTurn();
       break;
     }
-    case 'swap': {
+    case 'block': {
       if (!state.drawn || state.drawn.kind !== 'waste') return;
       const slot = action.slot;
-      const target = opp.tableau[slot];
-      if (!target || target.kind !== 'green') return;
-      if (target.stage !== state.drawn.stage) return;
-      // Stage 1 swap: the wasteful card replaces the device green
-      // Stage 2 swap: the wasteful card must match the device of opp's stage 1 if present
-      if (slot === 1 && opp.tableau[0]) {
-        if (state.drawn.deviceId !== opp.tableau[0].deviceId) return;
-      }
-      if (slot === 0 && opp.tableau[1]) {
-        if (state.drawn.deviceId !== opp.tableau[1].deviceId) return;
-      }
-      const replaced = opp.tableau[slot];
+      if (slot < 0 || slot > 7) return;
+      if (opp.tableau[slot] !== null) return;        // must be empty
+      if (state.drawn.stage !== slot + 1) return;    // stage must match
       opp.tableau[slot] = state.drawn;
-      state.discard.push(replaced);
-      pushLog(player.name + ' swapped ' + opp.name + "'s " + replaced.name + ' for ' + state.drawn.name + '! 😱', fromRole);
+      pushLog(player.name + ' blocked ' + opp.name + "'s stage " + (slot+1) + ' with ' + state.drawn.name + '! 😱', fromRole);
       state.drawn = null;
       state.drawnBy = null;
+      endTurn();
+      break;
+    }
+    case 'clear-waste': {
+      // A player clears a wasteful card from their own board.
+      // Costs them their turn — no draw.
+      const slot = action.slot;
+      if (slot < 0 || slot > 7) return;
+      const card = player.tableau[slot];
+      if (!card || card.kind !== 'waste') return;
+      if (state.drawn) return;  // can only clear at start of your turn, before drawing
+      player.tableau[slot] = null;
+      state.discard.push(card);
+      pushLog(player.name + ' cleared the ' + card.name + ' from their board. 🧹', fromRole);
       endTurn();
       break;
     }
@@ -1365,13 +1434,15 @@ function renderGame() {
       discardBtn.onclick = discardCard;
       cardActions.appendChild(discardBtn);
     } else if (state.drawn.kind === 'waste') {
-      const targets = findSwapTargets(opp, state.drawn);
+      const targets = findBlockTargets(opp, state.drawn);
       if (targets.length > 0) {
-        const swapBtn = document.createElement('button');
-        swapBtn.className = 'btn red';
-        swapBtn.textContent = '💥 Swap onto ' + opp.name + "'s board";
-        swapBtn.onclick = startSwap;
-        cardActions.appendChild(swapBtn);
+        const blockBtn = document.createElement('button');
+        blockBtn.className = 'btn red';
+        blockBtn.textContent = '🚫 Block ' + opp.name + "'s board";
+        blockBtn.onclick = startBlock;
+        cardActions.appendChild(blockBtn);
+      } else {
+        drawnPrompt.innerHTML += '<br><span style="font-size: 14px; color: var(--red);">No empty slot to block — discard it.</span>';
       }
       const discardBtn = document.createElement('button');
       discardBtn.className = 'btn ghost';
@@ -1390,10 +1461,43 @@ function renderGame() {
   // Tableaus
   renderSlots('me-slots', me, true);
   renderSlots('opp-slots', opp, false);
+  renderPairHint(me);
 
   // Green shout button
   const shoutBtn = document.getElementById('green-shout-btn');
   shoutBtn.disabled = !isMyTurn() || !checkWin(me);
+}
+
+function renderPairHint(player) {
+  const hintEl = document.getElementById('pair-hint');
+  const s1 = player.tableau[0];
+  const s2 = player.tableau[1];
+
+  // Only show hint when we have ONE of the pair (green card) and need the other
+  const haveS1 = s1 && s1.kind === 'green';
+  const haveS2 = s2 && s2.kind === 'green';
+
+  if (haveS1 && !haveS2) {
+    // Player has the device, needs the matching action
+    const action = GREEN_ACTIONS[s1.deviceId];
+    hintEl.innerHTML =
+      '<span class="hint-icon">💡</span>' +
+      '<span class="hint-text">You played <span class="hint-card">' + s1.icon + ' ' + s1.name + '</span>' +
+      ' — now look for <span class="hint-card">' + action.icon + ' ' + action.name + '</span>' +
+      ' to lock in your pair!</span>';
+    hintEl.style.display = 'flex';
+  } else if (haveS2 && !haveS1) {
+    // Player has the action, needs the matching device
+    const device = DEVICES.find(d => d.id === s2.deviceId);
+    hintEl.innerHTML =
+      '<span class="hint-icon">💡</span>' +
+      '<span class="hint-text">You played <span class="hint-card">' + s2.icon + ' ' + s2.name + '</span>' +
+      ' — now look for <span class="hint-card">' + device.icon + ' ' + device.name + '</span>' +
+      ' to lock in your pair!</span>';
+    hintEl.style.display = 'flex';
+  } else {
+    hintEl.style.display = 'none';
+  }
 }
 
 function findPlaceableSlots(player, card) {
@@ -1409,14 +1513,13 @@ function findPlaceableSlots(player, card) {
   return out;
 }
 
-function findSwapTargets(opp, wasteCard) {
+function findBlockTargets(opp, wasteCard) {
+  // Wasteful cards now BLOCK empty slots of matching stage on the opponent's board.
+  // No device-matching constraint — any wasteful of the right stage can block.
   const targets = [];
   for (let i = 0; i < 8; i++) {
-    const t = opp.tableau[i];
-    if (!t || t.kind !== 'green') continue;
-    if (t.stage !== wasteCard.stage) continue;
-    if (i === 1 && opp.tableau[0] && wasteCard.deviceId !== opp.tableau[0].deviceId) continue;
-    if (i === 0 && opp.tableau[1] && wasteCard.deviceId !== opp.tableau[1].deviceId) continue;
+    if (opp.tableau[i] !== null) continue;     // slot already has something
+    if (wasteCard.stage !== i + 1) continue;   // stage must match the slot
     targets.push(i);
   }
   return targets;
@@ -1428,6 +1531,11 @@ function renderSlots(elementId, player, isMe) {
   const drawn = state.drawn;
   const placeable = (isMe && isMyTurn() && drawn && drawn.kind !== 'waste' && state.drawnBy === myRole())
     ? findPlaceableSlots(player, drawn) : [];
+
+  // Detect a matched Stage 1 + Stage 2 device-action pair
+  const pairLocked = player.tableau[0] && player.tableau[1]
+    && player.tableau[0].kind === 'green' && player.tableau[1].kind === 'green'
+    && player.tableau[0].deviceId === player.tableau[1].deviceId;
 
   for (let i = 0; i < 8; i++) {
     const slot = document.createElement('div');
@@ -1449,6 +1557,23 @@ function renderSlots(elementId, player, isMe) {
     if (isMe && placeable.includes(i)) {
       slot.classList.add('placeable');
       slot.onclick = () => placeCard(i);
+    }
+
+    // Allow clearing wasteful cards from my own board at the start of my turn (before drawing).
+    if (isMe && isMyTurn() && !state.drawn && player.tableau[i] && player.tableau[i].kind === 'waste') {
+      slot.classList.add('swap-target');
+      slot.title = 'Click to clear this wasteful card (costs your turn)';
+      slot.onclick = () => {
+        if (confirm('Clear ' + player.tableau[i].name + ' from your board? This will use your turn.')) {
+          clearWaste(i);
+        }
+      };
+    }
+
+    // Visually lock Stage 1 + 2 when they're a matched pair (they're already mechanically safe)
+    if (pairLocked && (i === 0 || i === 1)) {
+      slot.classList.add('locked');
+      slot.title = 'Matched pair — locked in!';
     }
 
     container.appendChild(slot);
@@ -1480,23 +1605,31 @@ function renderCard(card, size) {
 // =========================================================================
 //   SWAP MODAL
 // =========================================================================
-function showSwapModal() {
+function showBlockModal() {
   const modal = document.getElementById('swap-modal');
   const container = document.getElementById('swap-targets');
   container.innerHTML = '';
   const opp = state.players[oppRole()];
-  const targets = findSwapTargets(opp, state.drawn);
+  const targets = findBlockTargets(opp, state.drawn);
   targets.forEach(idx => {
     const slot = document.createElement('div');
     slot.className = 'slot swap-target';
-    slot.appendChild(renderCard(opp.tableau[idx], 'small'));
-    slot.onclick = () => executeSwap(idx);
+    // Show what stage they're blocking
+    const num = document.createElement('div');
+    num.className = 'stage-num';
+    num.textContent = idx + 1;
+    const label = document.createElement('div');
+    label.className = 'stage-label';
+    label.textContent = STAGE_LABELS[idx];
+    slot.appendChild(num);
+    slot.appendChild(label);
+    slot.onclick = () => executeBlock(idx);
     container.appendChild(slot);
   });
   modal.classList.add('active');
 }
-function hideSwapModal() { document.getElementById('swap-modal').classList.remove('active'); }
-function cancelSwap() { hideSwapModal(); }
+function hideBlockModal() { document.getElementById('swap-modal').classList.remove('active'); }
+function cancelSwap() { hideBlockModal(); }
 
 // =========================================================================
 //   END / REMATCH MODAL
