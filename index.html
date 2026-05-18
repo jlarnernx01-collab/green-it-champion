@@ -1028,6 +1028,10 @@ function handleMessage(msg) {
       // Guest receives state from host
       state = msg.state;
       oppName = state.players[oppRole()].name;
+      if (!gameStarted) {
+        gameStarted = true;
+        showGameScreen();
+      }
       renderGame();
       break;
     case 'action':
