@@ -337,6 +337,28 @@
     cursor: pointer;
     animation: bounce 0.6s ease-in-out infinite;
   }
+  /* When placing over a wasteful card, show a bright glow + overwrite badge */
+  .slot.placeable.overwrite {
+    background: transparent;
+    box-shadow: 0 0 0 4px var(--green), 0 0 30px rgba(47, 143, 62, 0.5);
+    position: relative;
+  }
+  .slot.placeable.overwrite::after {
+    content: "💪 Cover it!";
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--green-deep);
+    color: white;
+    font-size: 10px;
+    font-weight: 900;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    border: 2px solid var(--ink);
+    z-index: 3;
+  }
   .slot.swap-target {
     background: var(--red-soft);
     border-style: solid; border-color: var(--red);
@@ -892,8 +914,9 @@
       <ol>
         <li><strong>On your turn</strong>, click the deck (or the discard pile) to draw a card.</li>
         <li><strong>Green Way</strong> cards go on YOUR board. Click a glowing slot to place it.</li>
-        <li><strong>Wasteful</strong> cards can be dropped on <em>any empty slot</em> on your opponent's board to block their progress — they'll have to clear it before they can win!</li>
-        <li>If a wasteful card is blocking one of YOUR slots, click it at the start of your turn to clear it (this uses your turn, no draw).</li>
+        <li><strong>Wasteful</strong> cards can be dropped on <em>any empty slot</em> on your opponent's board to block their progress.</li>
+        <li>💪 If a wasteful card is blocking one of YOUR slots, you can cover it with a matching Green card — just place as normal!</li>
+        <li>Or clear a wasteful card from your board (no draw) by clicking it at the start of your turn.</li>
         <li><strong>Stage 1 (Device)</strong> and <strong>Stage 2 (Action)</strong> must be a matching pair (e.g. Laptop + Reuse).</li>
         <li>💡 Click <strong>any card</strong> (on the board or in your hand) to learn <strong>why</strong> it's green or wasteful!</li>
         <li>First to collect all 8 Green Way cards — with matching device + action — shouts "GREEN!" and wins! 🌍</li>
@@ -1343,9 +1366,11 @@ function handleAction(action, fromRole) {
       if (c.kind === 'waste') return; // waste cards can't go on your own board
       const slot = action.slot;
       if (slot < 0 || slot > 7) return;
-      if (player.tableau[slot] !== null) return;
       // Stage must match slot+1
       if (c.stage !== slot + 1) return;
+      // Slot must be empty OR contain a wasteful card (which we'll overwrite)
+      const existing = player.tableau[slot];
+      if (existing !== null && existing.kind !== 'waste') return;
       // Stage 2 must match the device of stage 1 (if stage 1 placed)
       if (slot === 1 && player.tableau[0]) {
         if (c.deviceId !== player.tableau[0].deviceId) return;
@@ -1353,8 +1378,14 @@ function handleAction(action, fromRole) {
       if (slot === 0 && player.tableau[1]) {
         if (c.deviceId !== player.tableau[1].deviceId) return;
       }
+      // If we're overwriting a wasteful card, send it to the discard pile
+      if (existing && existing.kind === 'waste') {
+        state.discard.push(existing);
+        pushLog(player.name + ' covered the ' + existing.name + ' with ' + c.name + '! 💪', fromRole);
+      } else {
+        pushLog(player.name + ' placed ' + c.name + ' (stage ' + (slot+1) + ').', fromRole);
+      }
       player.tableau[slot] = c;
-      pushLog(player.name + ' placed ' + c.name + ' (stage ' + (slot+1) + ').', fromRole);
       state.drawn = null;
       state.drawnBy = null;
       endTurn();
@@ -1604,10 +1635,12 @@ function findPlaceableSlots(player, card) {
   if (card.kind === 'waste') return [];
   const slot = card.stage - 1;
   const out = [];
-  if (player.tableau[slot] === null) {
+  const existing = player.tableau[slot];
+  // Slot is OK if empty, OR if it contains a wasteful card (we can overwrite it)
+  if (existing === null || existing.kind === 'waste') {
     // Check pair constraint
-    if (card.stage === 1 && player.tableau[1] && player.tableau[1].deviceId !== card.deviceId) return [];
-    if (card.stage === 2 && player.tableau[0] && player.tableau[0].deviceId !== card.deviceId) return [];
+    if (card.stage === 1 && player.tableau[1] && player.tableau[1].kind === 'green' && player.tableau[1].deviceId !== card.deviceId) return [];
+    if (card.stage === 2 && player.tableau[0] && player.tableau[0].kind === 'green' && player.tableau[0].deviceId !== card.deviceId) return [];
     out.push(slot);
   }
   return out;
@@ -1655,6 +1688,11 @@ function renderSlots(elementId, player, isMe) {
 
     if (isMe && placeable.includes(i)) {
       slot.classList.add('placeable');
+      // If placing onto a wasteful card, mark as overwrite for visual distinction
+      if (player.tableau[i] && player.tableau[i].kind === 'waste') {
+        slot.classList.add('overwrite');
+        slot.title = 'Click to cover this wasteful card with your green one!';
+      }
       slot.onclick = () => placeCard(i);
     }
 
