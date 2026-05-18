@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Green IT Champion! — 2 Player Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800;9..144,900&family=Nunito:wght@500;700;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root {
+    --bg: #f0f7e8;
+    --bg-deep: #d9ecc4;
+    --paper: #fffef7;
+    --ink: #1a3a1f;
+    --ink-soft: #436a3d;
+    --green: #2f8f3e;
+    --green-deep: #1b5e20;
+    --green-light: #a4d977;
+    --gold: #f5b800;
+    --gold-deep: #c98a00;
+    --red: #c0392b;
+    --red-deep: #8b1e14;
+    --red-soft: #ffe8e3;
+    --slot: #e8efde;
+    --slot-empty: #c7d4b3;
+    --shadow: 0 4px 0 rgba(27, 94, 32, 0.18), 0 10px 30px rgba(27, 94, 32, 0.12);
+    --shadow-card: 0 6px 0 rgba(27, 94, 32, 0.2), 0 14px 28px rgba(27, 94, 32, 0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 10% 10%, rgba(164, 217, 119, 0.4), transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(47, 143, 62, 0.18), transparent 40%),
+      var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding: 16px;
+  }
+
+  /* Decorative leaves floating in the background */
+  body::before, body::after {
+    content: "🍃";
+    position: fixed;
+    font-size: 80px;
+    opacity: 0.08;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before { top: 8%; left: 3%; transform: rotate(-20deg); }
+  body::after { bottom: 8%; right: 3%; transform: rotate(35deg); font-size: 100px; }
+
+  header {
+    text-align: center;
+    margin: 16px 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: clamp(32px, 5vw, 56px);
+    color: var(--green-deep);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    text-shadow: 3px 3px 0 var(--gold);
+  }
+  h1 .leaf { display: inline-block; transform: rotate(-15deg); }
+
+  .subtitle {
+    font-weight: 700;
+    color: var(--ink-soft);
+    font-size: 16px;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+  }
+
+  .toolbar {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ========== BUTTONS ========== */
+  .btn {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 900;
+    font-size: 16px;
+    border: 3px solid var(--ink);
+    background: var(--green);
+    color: white;
+    padding: 12px 22px;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform 0.1s, box-shadow 0.1s;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0 rgba(27, 94, 32, 0.18), 0 14px 30px rgba(27, 94, 32, 0.18); }
+  .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 rgba(27, 94, 32, 0.18), 0 6px 15px rgba(27, 94, 32, 0.1); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.ghost { background: var(--paper); color: var(--ink); }
+  .btn.gold { background: var(--gold); color: var(--ink); }
+  .btn.red { background: var(--red); color: white; }
+  .btn.small { padding: 8px 14px; font-size: 13px; }
+
+  /* ========== LOBBY ========== */
+  .lobby {
+    max-width: 600px;
+    margin: 40px auto;
+    background: var(--paper);
+    border: 4px solid var(--ink);
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: var(--shadow);
+    position: relative;
+    z-index: 1;
+  }
+  .lobby h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    color: var(--green-deep);
+    margin-bottom: 8px;
+  }
+  .lobby p { margin-bottom: 16px; color: var(--ink-soft); }
+  .lobby-choice {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .lobby-card {
+    background: var(--bg);
+    border: 3px solid var(--ink);
+    border-radius: 16px;
+    padding: 20px;
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.15s, background 0.15s;
+  }
+  .lobby-card:hover { transform: translateY(-4px); background: var(--green-light); }
+  .lobby-card .icon { font-size: 48px; display: block; margin-bottom: 8px; }
+  .lobby-card h3 { font-family: 'Fraunces', serif; font-size: 20px; color: var(--green-deep); }
+  .lobby-card p { font-size: 13px; margin-top: 4px; color: var(--ink-soft); }
+
+  .name-input, .code-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 3px solid var(--ink);
+    border-radius: 12px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    background: var(--paper);
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+  .code-input {
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 8px;
+    font-size: 28px;
+    font-family: 'Fraunces', serif;
+  }
+
+  .room-code-display {
+    background: var(--gold);
+    border: 4px dashed var(--ink);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    margin: 16px 0;
+  }
+  .room-code-display .label {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .room-code-display .code {
+    font-family: 'Fraunces', serif;
+    font-size: 56px;
+    font-weight: 900;
+    letter-spacing: 10px;
+    color: var(--ink);
+    margin: 8px 0;
+  }
+  .room-code-display .hint { font-size: 13px; color: var(--ink-soft); }
+  .share-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+  .share-row input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: monospace;
+    background: var(--paper);
+  }
+
+  .status-bar {
+    background: var(--bg-deep);
+    border: 3px solid var(--ink);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-weight: 700;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .status-bar.error { background: var(--red-soft); border-color: var(--red); color: var(--red-deep); }
+  .status-bar.success { background: var(--green-light); border-color: var(--green-deep); }
+  .dot {
+    width: 12px; height: 12px;
+    background: var(--green); border-radius: 50%;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% {opacity:1;transform:scale(1);} 50% {opacity:0.4;transform:scale(0.7);} }
+
+  /* ========== GAME BOARD ========== */
+  .game-screen {
+    display: none;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+  .game-screen.active { display: block; }
+
+  .player-bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+    background: var(--paper);
+    border: 4px solid var(--ink);
+    border-radius: 18px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .player-info { display: flex; align-items: center; gap: 12px; }
+  .player-info.right { justify-content: flex-end; }
+  .avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 28px;
+    border: 3px solid var(--ink);
+    background: var(--green-light);
+  }
+  .avatar.opp { background: var(--gold); }
+  .player-info .name {
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+    font-size: 20px;
+  }
+  .player-info .progress { font-size: 12px; color: var(--ink-soft); font-weight: 700; }
+  .turn-indicator {
+    background: var(--green);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 999px;
+    font-weight: 900;
+    border: 3px solid var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 14px;
+    text-align: center;
+    box-shadow: 0 3px 0 rgba(27, 94, 32, 0.3);
+  }
+  .turn-indicator.waiting { background: var(--gold); color: var(--ink); }
+
+  /* ========== TABLEAU ========== */
+  .tableau-section {
+    background: var(--paper);
+    border: 4px solid var(--ink);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .tableau-section h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    color: var(--green-deep);
+    margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tableau-section.opp { background: linear-gradient(180deg, #fffaf0, #fff5e0); }
+
+  .slots {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+  }
+  @media (max-width: 900px) { .slots { grid-template-columns: repeat(4, 1fr); } }
+
+  .slot {
+    aspect-ratio: 2/3;
+    background: var(--slot);
+    border: 3px dashed var(--slot-empty);
+    border-radius: 12px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 6px;
+    position: relative;
+    transition: all 0.2s;
+    cursor: default;
+  }
+  .slot .stage-num {
+    position: absolute; top: 4px; left: 6px;
+    font-family: 'Fraunces', serif;
+    font-size: 13px; font-weight: 900;
+    color: var(--slot-empty);
+  }
+  .slot .stage-label {
+    font-size: 10px; color: var(--slot-empty);
+    font-weight: 700; text-align: center;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .slot.placeable {
+    background: var(--green-light);
+    border-style: solid; border-color: var(--green-deep);
+    cursor: pointer;
+    animation: bounce 0.6s ease-in-out infinite;
+  }
+  .slot.swap-target {
+    background: var(--red-soft);
+    border-style: solid; border-color: var(--red);
+    cursor: pointer;
+    animation: shake 0.5s ease-in-out infinite;
+  }
+  @keyframes bounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-4px);} }
+  @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-3px);} 75%{transform:translateX(3px);} }
+
+  /* ========== CARD ========== */
+  .card {
+    width: 100%; height: 100%;
+    border-radius: 10px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: space-between;
+    padding: 6px 4px;
+    color: white;
+    border: 2px solid var(--ink);
+    box-shadow: var(--shadow-card);
+    position: relative;
+    overflow: hidden;
+  }
+  .card.green { background: linear-gradient(160deg, var(--green) 0%, var(--green-deep) 100%); }
+  .card.waste { background: linear-gradient(160deg, var(--red) 0%, var(--red-deep) 100%); }
+  .card.champion { background: linear-gradient(160deg, var(--gold) 0%, var(--gold-deep) 100%); color: var(--ink); }
+
+  .card::after {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.04) 6px, rgba(255,255,255,0.04) 12px);
+    pointer-events: none;
+  }
+
+  .card .pill {
+    font-size: 8px;
+    background: rgba(0,0,0,0.25);
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .card.champion .pill { background: rgba(0,0,0,0.15); }
+
+  .card .icon { font-size: 28px; line-height: 1; margin: 4px 0; }
+  .card .name {
+    font-family: 'Fraunces', serif;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.1;
+    padding: 0 2px;
+  }
+  .card .stage {
+    font-family: 'Fraunces', serif;
+    font-size: 10px;
+    font-weight: 900;
+    opacity: 0.8;
+  }
+
+  /* card in hand area */
+  .hand-card-wrapper {
+    width: 200px; height: 280px;
+    perspective: 1000px;
+  }
+  .hand-card-wrapper .card {
+    border-radius: 16px;
+    padding: 12px 8px;
+    transform: scale(1);
+    transition: transform 0.3s;
+  }
+  .hand-card-wrapper .card .icon { font-size: 80px; margin: 8px 0; }
+  .hand-card-wrapper .card .name { font-size: 18px; line-height: 1.15; }
+  .hand-card-wrapper .card .stage { font-size: 13px; }
+  .hand-card-wrapper .card .pill { font-size: 11px; padding: 4px 10px; margin-top: 4px; }
+
+  /* ========== ACTION AREA ========== */
+  .action-area {
+    background: var(--paper);
+    border: 4px solid var(--ink);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 24px;
+    align-items: center;
+    min-height: 320px;
+  }
+  @media (max-width: 900px) { .action-area { grid-template-columns: 1fr; text-align: center; } }
+
+  .deck-area { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .deck {
+    width: 140px; height: 200px;
+    background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 50%, var(--green-deep) 100%);
+    border: 3px solid var(--ink);
+    border-radius: 14px;
+    box-shadow: var(--shadow-card);
+    display: grid; place-items: center;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.15s;
+  }
+  .deck::before {
+    content: ""; position: absolute; inset: 8px;
+    border: 2px dashed rgba(255,255,255,0.4);
+    border-radius: 10px;
+  }
+  .deck .deck-icon { font-size: 56px; }
+  .deck:hover:not(.disabled) { transform: translateY(-4px) rotate(-2deg); }
+  .deck.disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.5); }
+  .deck-count {
+    font-weight: 900; font-size: 13px;
+    background: var(--ink); color: var(--paper);
+    padding: 3px 10px; border-radius: 999px;
+  }
+
+  .drawn-area {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 12px;
+    min-height: 280px;
+    justify-content: center;
+  }
+  .drawn-prompt {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    color: var(--ink-soft);
+    text-align: center;
+    line-height: 1.3;
+  }
+  .drawn-prompt strong { color: var(--green-deep); }
+  .card-actions {
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  }
+
+  .discard-area { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .discard-pile {
+    width: 100px; height: 140px;
+    background: var(--bg);
+    border: 3px dashed var(--slot-empty);
+    border-radius: 12px;
+    display: grid; place-items: center;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .discard-pile.has-card { background: transparent; border-style: solid; border-color: transparent; }
+  .discard-pile:hover:not(.disabled) { transform: translateY(-4px); }
+  .discard-pile.disabled { cursor: not-allowed; opacity: 0.6; }
+  .discard-pile .empty-label { font-size: 11px; color: var(--slot-empty); font-weight: 700; text-transform: uppercase; }
+  .discard-pile .card { width: 100%; height: 100%; border-radius: 10px; }
+  .discard-pile .card .icon { font-size: 36px; }
+  .discard-pile .card .name { font-size: 11px; }
+
+  /* ========== LOG ========== */
+  .log {
+    background: var(--paper);
+    border: 4px solid var(--ink);
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin-top: 16px;
+    max-height: 120px;
+    overflow-y: auto;
+    box-shadow: var(--shadow);
+    font-size: 13px;
+  }
+  .log h4 { font-family: 'Fraunces', serif; font-size: 14px; color: var(--green-deep); margin-bottom: 6px; }
+  .log-entry { padding: 3px 0; border-bottom: 1px dotted var(--slot-empty); }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry.me { color: var(--green-deep); font-weight: 700; }
+  .log-entry.opp { color: var(--gold-deep); font-weight: 700; }
+
+  /* ========== MODALS ========== */
+  .modal-back {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(26, 58, 31, 0.7);
+    z-index: 100;
+    align-items: center; justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(6px);
+  }
+  .modal-back.active { display: flex; }
+  .modal {
+    background: var(--paper);
+    border: 5px solid var(--ink);
+    border-radius: 24px;
+    padding: 32px;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    text-align: center;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    color: var(--green-deep);
+    margin-bottom: 12px;
+  }
+  .modal p { margin-bottom: 12px; color: var(--ink-soft); }
+  .modal.win h2 { color: var(--gold-deep); font-size: 40px; }
+  .modal.lose h2 { color: var(--red-deep); }
+  .modal-actions { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .rules { text-align: left; background: var(--bg); padding: 16px; border-radius: 12px; margin: 12px 0; }
+  .rules ol { padding-left: 22px; }
+  .rules li { margin-bottom: 6px; font-size: 14px; }
+
+  .picker {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin: 16px 0;
+  }
+  .picker .slot { cursor: pointer; }
+
+  .quick-rules {
+    max-width: 900px;
+    margin: 16px auto 0;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  .pulse-ring {
+    box-shadow: 0 0 0 0 rgba(47, 143, 62, 0.6);
+    animation: ring 1.5s infinite;
+  }
+  @keyframes ring {
+    0% { box-shadow: 0 0 0 0 rgba(47, 143, 62, 0.6); }
+    70% { box-shadow: 0 0 0 16px rgba(47, 143, 62, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(47, 143, 62, 0); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="leaf">🌱</span> Green IT Champion!</h1>
+  <div class="subtitle">A 2-player online sustainability card game</div>
+</header>
+
+<!-- ========== LOBBY SCREEN ========== -->
+<div id="lobby-screen" class="lobby">
+  <div id="lobby-home">
+    <h2>Play with a friend</h2>
+    <p>One player hosts a game and shares the code. The other joins. No accounts, no downloads — just play!</p>
+
+    <label style="font-weight: 700; font-size: 14px; display: block; margin-bottom: 6px;">Your name (or nickname)</label>
+    <input id="player-name" class="name-input" type="text" placeholder="e.g. Alex" maxlength="14" />
+
+    <div class="lobby-choice">
+      <div class="lobby-card" onclick="goToHost()">
+        <span class="icon">🎮</span>
+        <h3>Host a Game</h3>
+        <p>Get a code to share</p>
+      </div>
+      <div class="lobby-card" onclick="goToJoin()">
+        <span class="icon">🔑</span>
+        <h3>Join a Game</h3>
+        <p>I have a code</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="lobby-host" style="display:none;">
+    <h2>Hosting a game</h2>
+    <p>Share this code with your friend. Once they connect, the game begins.</p>
+    <div class="room-code-display">
+      <div class="label">Room Code</div>
+      <div class="code" id="room-code">------</div>
+      <div class="hint">or share the link below</div>
+    </div>
+    <div class="share-row">
+      <input id="share-link" type="text" readonly />
+      <button class="btn small" onclick="copyLink()">Copy</button>
+    </div>
+    <div class="status-bar" id="host-status">
+      <div class="dot"></div>
+      <span>Waiting for friend to join…</span>
+    </div>
+    <div style="margin-top: 16px;">
+      <button class="btn ghost small" onclick="backToLobby()">← Back</button>
+    </div>
+  </div>
+
+  <div id="lobby-join" style="display:none;">
+    <h2>Join a game</h2>
+    <p>Enter the 6-character code your friend shared with you.</p>
+    <input id="join-code" class="code-input" type="text" maxlength="6" placeholder="------" />
+    <button class="btn" onclick="joinRoom()" style="width: 100%;">Join Game</button>
+    <div class="status-bar" id="join-status" style="display:none;">
+      <div class="dot"></div>
+      <span id="join-status-text">Connecting…</span>
+    </div>
+    <div style="margin-top: 16px;">
+      <button class="btn ghost small" onclick="backToLobby()">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== GAME SCREEN ========== -->
+<div id="game-screen" class="game-screen">
+
+  <!-- Player bar -->
+  <div class="player-bar">
+    <div class="player-info">
+      <div class="avatar" id="me-avatar">🌱</div>
+      <div>
+        <div class="name" id="me-name">You</div>
+        <div class="progress" id="me-progress">0 / 8 cards</div>
+      </div>
+    </div>
+    <div class="turn-indicator" id="turn-indicator">Your turn</div>
+    <div class="player-info right">
+      <div>
+        <div class="name" id="opp-name" style="text-align:right;">Opponent</div>
+        <div class="progress" id="opp-progress" style="text-align:right;">0 / 8 cards</div>
+      </div>
+      <div class="avatar opp" id="opp-avatar">🦝</div>
+    </div>
+  </div>
+
+  <!-- Opponent's tableau (small) -->
+  <div class="tableau-section opp">
+    <h3>
+      <span><span id="opp-tab-name">Opponent</span>'s Board</span>
+      <span style="font-size: 12px; color: var(--ink-soft);">Stage 1 → Stage 8</span>
+    </h3>
+    <div class="slots" id="opp-slots"></div>
+  </div>
+
+  <!-- Action area -->
+  <div class="action-area">
+    <div class="deck-area">
+      <div class="deck" id="deck" onclick="drawCard()">
+        <div class="deck-icon">🍃</div>
+      </div>
+      <div class="deck-count" id="deck-count">52 cards</div>
+      <div style="font-size: 11px; color: var(--ink-soft); font-weight: 700;">DRAW PILE</div>
+    </div>
+
+    <div class="drawn-area" id="drawn-area">
+      <div class="drawn-prompt" id="drawn-prompt">
+        Click the <strong>deck</strong> to draw a card.
+      </div>
+      <div class="card-actions" id="card-actions"></div>
+    </div>
+
+    <div class="discard-area">
+      <div class="discard-pile" id="discard-pile" onclick="drawFromDiscard()">
+        <div class="empty-label">DISCARD</div>
+      </div>
+      <div style="font-size: 11px; color: var(--ink-soft); font-weight: 700;">DISCARD PILE</div>
+    </div>
+  </div>
+
+  <!-- My tableau -->
+  <div class="tableau-section">
+    <h3>
+      <span>Your Board — collect all 8!</span>
+      <button class="btn gold small" id="green-shout-btn" onclick="shoutGreen()" disabled>🏆 SHOUT "GREEN!"</button>
+    </h3>
+    <div class="slots" id="me-slots"></div>
+  </div>
+
+  <!-- Log -->
+  <div class="log">
+    <h4>Game Log</h4>
+    <div id="log-entries"></div>
+  </div>
+
+  <div class="quick-rules">
+    <strong>Green = Good · Red = Wasteful · Gold = Champion!</strong> Stage 1 (Device) and Stage 2 (Action) must match. Wasteful cards can replace an opponent's Green card — they'll need to fix it back!
+  </div>
+</div>
+
+<!-- ========== SWAP TARGET PICKER ========== -->
+<div class="modal-back" id="swap-modal">
+  <div class="modal">
+    <h2>Swap a card!</h2>
+    <p>Pick one of your opponent's Green cards to replace with this Wasteful one.</p>
+    <div class="picker" id="swap-targets"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="cancelSwap()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== WIN/LOSE MODAL ========== -->
+<div class="modal-back" id="end-modal">
+  <div class="modal" id="end-modal-content">
+    <h2 id="end-title">🏆 GREEN IT CHAMPION!</h2>
+    <p id="end-text">You collected every Green Way card!</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="requestRematch()">Play Again</button>
+      <button class="btn ghost" onclick="leaveGame()">Leave</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== DISCONNECT MODAL ========== -->
+<div class="modal-back" id="disconnect-modal">
+  <div class="modal lose">
+    <h2>😢 Connection lost</h2>
+    <p id="disconnect-text">Your friend disconnected. The game can't continue.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="leaveGame()">Back to Lobby</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== RULES MODAL ========== -->
+<div class="modal-back" id="rules-modal">
+  <div class="modal">
+    <h2>How to play</h2>
+    <div class="rules">
+      <ol>
+        <li><strong>On your turn</strong>, click the deck (or the discard pile) to draw a card.</li>
+        <li><strong>Green Way</strong> cards go on YOUR board. Click an empty matching stage slot to place it.</li>
+        <li><strong>Wasteful</strong> cards can be used to <em>swap out</em> one of your opponent's Green cards (yuck!) — or just discarded.</li>
+        <li><strong>Stage 1 (Device)</strong> and <strong>Stage 2 (Action)</strong> must be a matching pair (e.g. Laptop + Reuse).</li>
+        <li>First to collect all 8 Green Way cards — with matching device + action — shouts "GREEN!" and wins! 🌍</li>
+      </ol>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideRules()">Got it!</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =========================================================================
+//   GAME DATA — Green IT Champion!
+// =========================================================================
+// Stages 1 & 2 are matching device+action pairs.
+// Stages 3-7 are habit cards (green way / wasteful way).
+// Stage 8 is the Champion winning card.
+
+const DEVICES = [
+  { id: 'laptop',    name: 'Old Laptop',     icon: '💻' },
+  { id: 'tablet',    name: 'School Tablet',  icon: '📱' },
+  { id: 'phone',     name: 'Smartphone',     icon: '📞' },
+  { id: 'console',   name: 'Games Console',  icon: '🎮' },
+  { id: 'desktop',   name: 'Desktop PC',     icon: '🖥️' },
+];
+
+const GREEN_ACTIONS = {
+  laptop:  { name: 'Reuse',          icon: '♻️', desc: 'Wipe & pass on' },
+  tablet:  { name: 'Repurpose',      icon: '🖼️', desc: 'Photo frame!' },
+  phone:   { name: 'Resell',         icon: '💰', desc: 'Trade in' },
+  console: { name: 'Repair',         icon: '🔧', desc: 'Fix it!' },
+  desktop: { name: 'Recycle Parts',  icon: '⚙️', desc: 'Save metals' },
+};
+const WASTE_ACTIONS = {
+  laptop:  { name: 'Dump in Attic',  icon: '📦', desc: 'Forgotten' },
+  tablet:  { name: 'Smash it',       icon: '💥', desc: 'Wasted!' },
+  phone:   { name: 'Bin it',         icon: '🗑️', desc: 'Lost forever' },
+  console: { name: 'Replace',        icon: '🛒', desc: 'Buy new!' },
+  desktop: { name: 'Landfill',       icon: '☠️', desc: 'Pollutes!' },
+};
+
+const HABITS = [
+  { stage: 3, green: { name: 'Energy Saver On', icon: '🍃' },        waste: { name: 'Energy Guzzler',   icon: '🔥' } },
+  { stage: 4, green: { name: 'Unplug When Done', icon: '🔌' },        waste: { name: 'Always Plugged In', icon: '⚡' } },
+  { stage: 5, green: { name: 'Share Cloud Storage', icon: '☁️' },     waste: { name: 'Files Everywhere',  icon: '🗂️' } },
+  { stage: 6, green: { name: 'Repair, Not Replace', icon: '🔧' },     waste: { name: 'Bin at First Fault', icon: '🗑️' } },
+  { stage: 7, green: { name: 'Take to E-Waste', icon: '♻️' },         waste: { name: 'Regular Bin',       icon: '☠️' } },
+];
+
+const CHAMPION_CARD = { stage: 8, green: { name: 'GREEN IT CHAMPION!', icon: '🌍' } };
+
+const STAGE_LABELS = ['Device','Action','Habit 3','Habit 4','Habit 5','Habit 6','Habit 7','Champion'];
+
+// Build the deck. Multiple copies of each so there's interaction.
+function buildDeck() {
+  const deck = [];
+
+  // Stage 1 cards: each device, green + waste, x2 each
+  DEVICES.forEach(d => {
+    for (let i = 0; i < 2; i++) {
+      deck.push({ kind: 'green', stage: 1, deviceId: d.id, name: d.name, icon: d.icon });
+      deck.push({ kind: 'waste', stage: 1, deviceId: d.id, name: d.name, icon: d.icon });
+    }
+  });
+
+  // Stage 2 cards: each device's green action + waste action, x2 each
+  DEVICES.forEach(d => {
+    for (let i = 0; i < 2; i++) {
+      const g = GREEN_ACTIONS[d.id];
+      const w = WASTE_ACTIONS[d.id];
+      deck.push({ kind: 'green', stage: 2, deviceId: d.id, name: g.name, icon: g.icon, desc: g.desc });
+      deck.push({ kind: 'waste', stage: 2, deviceId: d.id, name: w.name, icon: w.icon, desc: w.desc });
+    }
+  });
+
+  // Stages 3-7: each green and waste version, x3 each
+  HABITS.forEach(h => {
+    for (let i = 0; i < 3; i++) {
+      deck.push({ kind: 'green', stage: h.stage, name: h.green.name, icon: h.green.icon });
+      deck.push({ kind: 'waste', stage: h.stage, name: h.waste.name, icon: h.waste.icon });
+    }
+  });
+
+  // Stage 8: Champion card, x4
+  for (let i = 0; i < 4; i++) {
+    deck.push({ kind: 'champion', stage: 8, name: CHAMPION_CARD.green.name, icon: CHAMPION_CARD.green.icon });
+  }
+
+  return deck;
+}
+
+// Seeded shuffle so both peers get same deck.
+function seededShuffle(array, seed) {
+  const arr = [...array];
+  let s = seed;
+  function rand() { s = (s * 9301 + 49297) % 233280; return s / 233280; }
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// =========================================================================
+//   NETWORK / PEER STATE
+// =========================================================================
+let peer = null;
+let conn = null;
+let isHost = false;
+let myName = '';
+let oppName = 'Opponent';
+let gameStarted = false;
+
+// =========================================================================
+//   GAME STATE (authoritative on host, mirrored on guest)
+// =========================================================================
+let state = null;
+// state = {
+//   deck: [...],
+//   discard: [...],
+//   players: { host: {name, tableau: [null x 8]}, guest: {name, tableau: [null x 8]} },
+//   turn: 'host' | 'guest',
+//   drawn: null | card,        // card the current player has drawn this turn
+//   drawnBy: 'host' | 'guest',
+//   winner: null | 'host' | 'guest',
+//   seed: number,
+// }
+
+function myRole() { return isHost ? 'host' : 'guest'; }
+function oppRole() { return isHost ? 'guest' : 'host'; }
+
+// =========================================================================
+//   LOBBY HANDLING
+// =========================================================================
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function getPeerId(roomCode) { return 'greenit-' + roomCode.toLowerCase(); }
+
+function backToLobby() {
+  document.getElementById('lobby-home').style.display = 'block';
+  document.getElementById('lobby-host').style.display = 'none';
+  document.getElementById('lobby-join').style.display = 'none';
+  if (peer) { peer.destroy(); peer = null; }
+  if (conn) { conn.close(); conn = null; }
+}
+
+function getPlayerName() {
+  const n = document.getElementById('player-name').value.trim();
+  return n || 'Player';
+}
+
+function goToHost() {
+  myName = getPlayerName();
+  isHost = true;
+  document.getElementById('lobby-home').style.display = 'none';
+  document.getElementById('lobby-host').style.display = 'block';
+
+  const code = generateCode();
+  document.getElementById('room-code').textContent = code;
+  const url = window.location.origin + window.location.pathname + '?room=' + code;
+  document.getElementById('share-link').value = url;
+
+  peer = new Peer(getPeerId(code));
+  peer.on('open', id => {
+    setStatus('host-status', 'Waiting for friend to join…', 'normal');
+  });
+  peer.on('connection', c => {
+    conn = c;
+    setupConnection();
+    conn.on('open', () => {
+      // Greet the guest with our name
+      send({ type: 'hello', name: myName });
+    });
+  });
+  peer.on('error', err => {
+    console.error('Peer error:', err);
+    setStatus('host-status', 'Could not start hosting: ' + err.type, 'error');
+  });
+}
+
+function goToJoin() {
+  myName = getPlayerName();
+  isHost = false;
+  document.getElementById('lobby-home').style.display = 'none';
+  document.getElementById('lobby-join').style.display = 'block';
+  // pre-fill from URL if present
+  const urlCode = new URLSearchParams(window.location.search).get('room');
+  if (urlCode) document.getElementById('join-code').value = urlCode.toUpperCase();
+}
+
+function joinRoom() {
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (code.length !== 6) {
+    setStatus('join-status', 'Code must be 6 characters', 'error', true);
+    return;
+  }
+  setStatus('join-status', 'Connecting…', 'normal', true);
+
+  peer = new Peer();
+  peer.on('open', () => {
+    conn = peer.connect(getPeerId(code), { reliable: true });
+    conn.on('open', () => {
+      send({ type: 'hello', name: myName });
+      setupConnection();
+    });
+    conn.on('error', err => {
+      setStatus('join-status', 'Failed: ' + err.type, 'error', true);
+    });
+    setTimeout(() => {
+      if (!conn || !conn.open) {
+        setStatus('join-status', 'Could not connect. Check the code?', 'error', true);
+      }
+    }, 8000);
+  });
+  peer.on('error', err => {
+    if (err.type === 'peer-unavailable') {
+      setStatus('join-status', 'No game found with that code', 'error', true);
+    } else {
+      setStatus('join-status', 'Error: ' + err.type, 'error', true);
+    }
+  });
+}
+
+function setStatus(id, msg, type, show) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (show) el.style.display = 'flex';
+  el.className = 'status-bar' + (type === 'error' ? ' error' : type === 'success' ? ' success' : '');
+  const text = el.querySelector('span');
+  if (text) text.textContent = msg;
+}
+
+function copyLink() {
+  const i = document.getElementById('share-link');
+  i.select(); document.execCommand('copy');
+  i.blur();
+}
+
+// =========================================================================
+//   CONNECTION SETUP
+// =========================================================================
+function setupConnection() {
+  conn.on('data', handleMessage);
+  conn.on('close', handleDisconnect);
+  conn.on('error', handleDisconnect);
+}
+
+function send(msg) {
+  if (conn && conn.open) conn.send(msg);
+}
+
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'hello':
+      oppName = msg.name;
+      if (isHost) {
+        // Host starts the game now that guest has greeted
+        startGame();
+      }
+      break;
+    case 'state':
+      // Guest receives state from host
+      state = msg.state;
+      oppName = state.players[oppRole()].name;
+      renderGame();
+      break;
+    case 'action':
+      // Host receives an action from guest
+      if (isHost) {
+        handleAction(msg.action, 'guest');
+      }
+      break;
+    case 'rematch-request':
+      if (confirm(oppName + ' wants to play again. Accept?')) {
+        send({ type: 'rematch-accept' });
+        hideEndModal();
+        if (isHost) startGame();
+      } else {
+        send({ type: 'rematch-decline' });
+      }
+      break;
+    case 'rematch-accept':
+      hideEndModal();
+      // Host will broadcast new state automatically
+      break;
+    case 'rematch-decline':
+      alert(oppName + ' declined the rematch.');
+      break;
+    case 'leave':
+      handleDisconnect();
+      break;
+  }
+}
+
+function handleDisconnect() {
+  if (!gameStarted) return;
+  document.getElementById('disconnect-modal').classList.add('active');
+}
+
+// =========================================================================
+//   GAME START
+// =========================================================================
+function startGame() {
+  // Host builds the initial state.
+  const seed = Math.floor(Math.random() * 100000);
+  const deck = seededShuffle(buildDeck(), seed);
+  state = {
+    deck: deck,
+    discard: [],
+    players: {
+      host:  { name: myName,  tableau: Array(8).fill(null) },
+      guest: { name: oppName, tableau: Array(8).fill(null) },
+    },
+    turn: Math.random() < 0.5 ? 'host' : 'guest',
+    drawn: null,
+    drawnBy: null,
+    winner: null,
+    seed: seed,
+  };
+  gameStarted = true;
+  broadcastState();
+  showGameScreen();
+  renderGame();
+  pushLog('Game started! ' + state.players[state.turn].name + ' goes first.', 'sys');
+}
+
+function showGameScreen() {
+  document.getElementById('lobby-screen').style.display = 'none';
+  document.getElementById('game-screen').classList.add('active');
+}
+
+function broadcastState() {
+  if (!isHost) return;
+  send({ type: 'state', state: state });
+}
+
+// =========================================================================
+//   GAME ACTIONS — only host mutates state
+// =========================================================================
+function isMyTurn() {
+  return state && state.turn === myRole() && !state.winner;
+}
+
+function drawCard() {
+  if (!isMyTurn() || state.drawn) return;
+  sendOrApplyAction({ type: 'draw' });
+}
+
+function drawFromDiscard() {
+  if (!isMyTurn() || state.drawn) return;
+  if (state.discard.length === 0) return;
+  sendOrApplyAction({ type: 'draw-discard' });
+}
+
+function placeCard(slotIdx) {
+  if (!isMyTurn() || !state.drawn) return;
+  sendOrApplyAction({ type: 'place', slot: slotIdx });
+}
+
+function discardCard() {
+  if (!isMyTurn() || !state.drawn) return;
+  sendOrApplyAction({ type: 'discard' });
+}
+
+function startSwap() {
+  if (!isMyTurn() || !state.drawn || state.drawn.kind !== 'waste') return;
+  showSwapModal();
+}
+
+function executeSwap(slotIdx) {
+  hideSwapModal();
+  sendOrApplyAction({ type: 'swap', slot: slotIdx });
+}
+
+function shoutGreen() {
+  if (!isMyTurn()) return;
+  sendOrApplyAction({ type: 'shout-green' });
+}
+
+function sendOrApplyAction(action) {
+  if (isHost) {
+    handleAction(action, 'host');
+  } else {
+    send({ type: 'action', action: action });
+  }
+}
+
+function handleAction(action, fromRole) {
+  if (!isHost) return;
+  if (state.winner) return;
+  if (state.turn !== fromRole) return; // not their turn
+
+  const player = state.players[fromRole];
+  const opp = state.players[fromRole === 'host' ? 'guest' : 'host'];
+
+  switch (action.type) {
+    case 'draw': {
+      if (state.drawn) return;
+      if (state.deck.length === 0) {
+        // reshuffle discard back into deck
+        const keep = state.discard.pop(); // keep top discard
+        state.deck = seededShuffle(state.discard, state.seed + Date.now() % 1000);
+        state.discard = keep ? [keep] : [];
+      }
+      const card = state.deck.pop();
+      state.drawn = card;
+      state.drawnBy = fromRole;
+      pushLog(player.name + ' drew a card.', fromRole);
+      break;
+    }
+    case 'draw-discard': {
+      if (state.drawn || state.discard.length === 0) return;
+      const card = state.discard.pop();
+      state.drawn = card;
+      state.drawnBy = fromRole;
+      pushLog(player.name + ' took the top discard.', fromRole);
+      break;
+    }
+    case 'place': {
+      if (!state.drawn) return;
+      const c = state.drawn;
+      if (c.kind === 'waste') return; // waste cards can't go on your own board
+      const slot = action.slot;
+      if (slot < 0 || slot > 7) return;
+      if (player.tableau[slot] !== null) return;
+      // Stage must match slot+1
+      if (c.stage !== slot + 1) return;
+      // Stage 2 must match the device of stage 1 (if stage 1 placed)
+      if (slot === 1 && player.tableau[0]) {
+        if (c.deviceId !== player.tableau[0].deviceId) return;
+      }
+      if (slot === 0 && player.tableau[1]) {
+        if (c.deviceId !== player.tableau[1].deviceId) return;
+      }
+      player.tableau[slot] = c;
+      pushLog(player.name + ' placed ' + c.name + ' (stage ' + (slot+1) + ').', fromRole);
+      state.drawn = null;
+      state.drawnBy = null;
+      endTurn();
+      break;
+    }
+    case 'discard': {
+      if (!state.drawn) return;
+      state.discard.push(state.drawn);
+      pushLog(player.name + ' discarded ' + state.drawn.name + '.', fromRole);
+      state.drawn = null;
+      state.drawnBy = null;
+      endTurn();
+      break;
+    }
+    case 'swap': {
+      if (!state.drawn || state.drawn.kind !== 'waste') return;
+      const slot = action.slot;
+      const target = opp.tableau[slot];
+      if (!target || target.kind !== 'green') return;
+      if (target.stage !== state.drawn.stage) return;
+      // Stage 1 swap: the wasteful card replaces the device green
+      // Stage 2 swap: the wasteful card must match the device of opp's stage 1 if present
+      if (slot === 1 && opp.tableau[0]) {
+        if (state.drawn.deviceId !== opp.tableau[0].deviceId) return;
+      }
+      if (slot === 0 && opp.tableau[1]) {
+        if (state.drawn.deviceId !== opp.tableau[1].deviceId) return;
+      }
+      const replaced = opp.tableau[slot];
+      opp.tableau[slot] = state.drawn;
+      state.discard.push(replaced);
+      pushLog(player.name + ' swapped ' + opp.name + "'s " + replaced.name + ' for ' + state.drawn.name + '! 😱', fromRole);
+      state.drawn = null;
+      state.drawnBy = null;
+      endTurn();
+      break;
+    }
+    case 'shout-green': {
+      // Verify win condition
+      if (checkWin(player)) {
+        state.winner = fromRole;
+        pushLog('🏆 ' + player.name + ' is the GREEN IT CHAMPION!', 'sys');
+      } else {
+        pushLog('❌ ' + player.name + ' shouted GREEN but their set is not complete!', fromRole);
+      }
+      break;
+    }
+  }
+
+  broadcastState();
+  renderGame();
+}
+
+function endTurn() {
+  state.turn = state.turn === 'host' ? 'guest' : 'host';
+}
+
+function checkWin(player) {
+  // All 8 slots filled with green/champion cards
+  for (let i = 0; i < 8; i++) {
+    if (!player.tableau[i]) return false;
+    if (player.tableau[i].kind === 'waste') return false;
+    if (player.tableau[i].stage !== i + 1) return false;
+  }
+  // Stage 1 and 2 device must match
+  if (player.tableau[0].deviceId !== player.tableau[1].deviceId) return false;
+  return true;
+}
+
+// =========================================================================
+//   RENDERING
+// =========================================================================
+function renderGame() {
+  if (!state) return;
+
+  const me = state.players[myRole()];
+  const opp = state.players[oppRole()];
+
+  // Names & avatars
+  document.getElementById('me-name').textContent = me.name + ' (you)';
+  document.getElementById('opp-name').textContent = opp.name;
+  document.getElementById('opp-tab-name').textContent = opp.name;
+  const meCount = me.tableau.filter(c => c && c.kind !== 'waste').length;
+  const oppCount = opp.tableau.filter(c => c && c.kind !== 'waste').length;
+  document.getElementById('me-progress').textContent = meCount + ' / 8 cards';
+  document.getElementById('opp-progress').textContent = oppCount + ' / 8 cards';
+
+  // Turn indicator
+  const turnEl = document.getElementById('turn-indicator');
+  if (state.winner) {
+    turnEl.textContent = state.winner === myRole() ? '🏆 You won!' : '😢 You lost';
+    turnEl.className = 'turn-indicator ' + (state.winner === myRole() ? '' : 'waiting');
+    if (!document.getElementById('end-modal').classList.contains('active')) {
+      showEndModal(state.winner === myRole());
+    }
+  } else if (isMyTurn()) {
+    turnEl.textContent = 'Your turn';
+    turnEl.className = 'turn-indicator';
+  } else {
+    turnEl.textContent = "Waiting for " + opp.name + "…";
+    turnEl.className = 'turn-indicator waiting';
+  }
+
+  // Deck
+  const deckEl = document.getElementById('deck');
+  document.getElementById('deck-count').textContent = state.deck.length + ' cards';
+  deckEl.classList.toggle('disabled', !isMyTurn() || !!state.drawn);
+  if (isMyTurn() && !state.drawn) deckEl.classList.add('pulse-ring'); else deckEl.classList.remove('pulse-ring');
+
+  // Discard pile
+  const discardEl = document.getElementById('discard-pile');
+  discardEl.innerHTML = '';
+  if (state.discard.length > 0) {
+    const top = state.discard[state.discard.length - 1];
+    discardEl.classList.add('has-card');
+    discardEl.appendChild(renderCard(top, 'small'));
+  } else {
+    discardEl.classList.remove('has-card');
+    const lbl = document.createElement('div');
+    lbl.className = 'empty-label';
+    lbl.textContent = 'EMPTY';
+    discardEl.appendChild(lbl);
+  }
+  discardEl.classList.toggle('disabled', !isMyTurn() || !!state.drawn || state.discard.length === 0);
+
+  // Drawn area
+  const drawnArea = document.getElementById('drawn-area');
+  const drawnPrompt = document.getElementById('drawn-prompt');
+  const cardActions = document.getElementById('card-actions');
+  cardActions.innerHTML = '';
+
+  // Remove old drawn card wrapper if any
+  const oldWrap = drawnArea.querySelector('.hand-card-wrapper');
+  if (oldWrap) oldWrap.remove();
+
+  if (state.drawn && state.drawnBy === myRole()) {
+    drawnPrompt.innerHTML = 'You drew a <strong>' + (state.drawn.kind === 'green' ? 'Green' : state.drawn.kind === 'waste' ? 'Wasteful' : 'Champion') + '</strong> card!';
+    const wrap = document.createElement('div');
+    wrap.className = 'hand-card-wrapper';
+    wrap.appendChild(renderCard(state.drawn, 'large'));
+    drawnArea.insertBefore(wrap, drawnPrompt);
+
+    if (state.drawn.kind === 'green' || state.drawn.kind === 'champion') {
+      const placeable = findPlaceableSlots(me, state.drawn);
+      if (placeable.length > 0) {
+        const placeBtn = document.createElement('button');
+        placeBtn.className = 'btn';
+        placeBtn.textContent = '⬇ Place on your board';
+        placeBtn.onclick = () => { /* slot click handles placement */ };
+        placeBtn.disabled = true;
+        // Instead of a button, instruct via highlight
+        drawnPrompt.innerHTML += '<br><span style="font-size: 14px; color: var(--green-deep);">Click a glowing slot below to place it</span>';
+      } else {
+        drawnPrompt.innerHTML += '<br><span style="font-size: 14px; color: var(--red);">No slot for this card — discard it.</span>';
+      }
+      const discardBtn = document.createElement('button');
+      discardBtn.className = 'btn ghost';
+      discardBtn.textContent = '🗑 Discard';
+      discardBtn.onclick = discardCard;
+      cardActions.appendChild(discardBtn);
+    } else if (state.drawn.kind === 'waste') {
+      const targets = findSwapTargets(opp, state.drawn);
+      if (targets.length > 0) {
+        const swapBtn = document.createElement('button');
+        swapBtn.className = 'btn red';
+        swapBtn.textContent = '💥 Swap onto ' + opp.name + "'s board";
+        swapBtn.onclick = startSwap;
+        cardActions.appendChild(swapBtn);
+      }
+      const discardBtn = document.createElement('button');
+      discardBtn.className = 'btn ghost';
+      discardBtn.textContent = '🗑 Discard';
+      discardBtn.onclick = discardCard;
+      cardActions.appendChild(discardBtn);
+    }
+  } else if (state.drawn && state.drawnBy === oppRole()) {
+    drawnPrompt.innerHTML = '<strong>' + opp.name + '</strong> is thinking…';
+  } else if (isMyTurn()) {
+    drawnPrompt.innerHTML = 'Click the <strong>deck</strong> to draw, or grab the top <strong>discard</strong>.';
+  } else {
+    drawnPrompt.innerHTML = "It's <strong>" + opp.name + "</strong>'s turn.";
+  }
+
+  // Tableaus
+  renderSlots('me-slots', me, true);
+  renderSlots('opp-slots', opp, false);
+
+  // Green shout button
+  const shoutBtn = document.getElementById('green-shout-btn');
+  shoutBtn.disabled = !isMyTurn() || !checkWin(me);
+}
+
+function findPlaceableSlots(player, card) {
+  if (card.kind === 'waste') return [];
+  const slot = card.stage - 1;
+  const out = [];
+  if (player.tableau[slot] === null) {
+    // Check pair constraint
+    if (card.stage === 1 && player.tableau[1] && player.tableau[1].deviceId !== card.deviceId) return [];
+    if (card.stage === 2 && player.tableau[0] && player.tableau[0].deviceId !== card.deviceId) return [];
+    out.push(slot);
+  }
+  return out;
+}
+
+function findSwapTargets(opp, wasteCard) {
+  const targets = [];
+  for (let i = 0; i < 8; i++) {
+    const t = opp.tableau[i];
+    if (!t || t.kind !== 'green') continue;
+    if (t.stage !== wasteCard.stage) continue;
+    if (i === 1 && opp.tableau[0] && wasteCard.deviceId !== opp.tableau[0].deviceId) continue;
+    if (i === 0 && opp.tableau[1] && wasteCard.deviceId !== opp.tableau[1].deviceId) continue;
+    targets.push(i);
+  }
+  return targets;
+}
+
+function renderSlots(elementId, player, isMe) {
+  const container = document.getElementById(elementId);
+  container.innerHTML = '';
+  const drawn = state.drawn;
+  const placeable = (isMe && isMyTurn() && drawn && drawn.kind !== 'waste' && state.drawnBy === myRole())
+    ? findPlaceableSlots(player, drawn) : [];
+
+  for (let i = 0; i < 8; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+
+    if (player.tableau[i]) {
+      slot.appendChild(renderCard(player.tableau[i], 'small'));
+    } else {
+      const num = document.createElement('div');
+      num.className = 'stage-num';
+      num.textContent = i + 1;
+      const label = document.createElement('div');
+      label.className = 'stage-label';
+      label.textContent = STAGE_LABELS[i];
+      slot.appendChild(num);
+      slot.appendChild(label);
+    }
+
+    if (isMe && placeable.includes(i)) {
+      slot.classList.add('placeable');
+      slot.onclick = () => placeCard(i);
+    }
+
+    container.appendChild(slot);
+  }
+}
+
+function renderCard(card, size) {
+  const el = document.createElement('div');
+  el.className = 'card ' + (card.kind === 'champion' ? 'champion' : card.kind);
+  const stage = document.createElement('div');
+  stage.className = 'stage';
+  stage.textContent = 'STAGE ' + card.stage;
+  const icon = document.createElement('div');
+  icon.className = 'icon';
+  icon.textContent = card.icon;
+  const name = document.createElement('div');
+  name.className = 'name';
+  name.textContent = card.name;
+  const pill = document.createElement('div');
+  pill.className = 'pill';
+  pill.textContent = card.kind === 'green' ? '✓ Green Way' : card.kind === 'waste' ? '✗ Wasteful' : '★ Champion';
+  el.appendChild(stage);
+  el.appendChild(icon);
+  el.appendChild(name);
+  el.appendChild(pill);
+  return el;
+}
+
+// =========================================================================
+//   SWAP MODAL
+// =========================================================================
+function showSwapModal() {
+  const modal = document.getElementById('swap-modal');
+  const container = document.getElementById('swap-targets');
+  container.innerHTML = '';
+  const opp = state.players[oppRole()];
+  const targets = findSwapTargets(opp, state.drawn);
+  targets.forEach(idx => {
+    const slot = document.createElement('div');
+    slot.className = 'slot swap-target';
+    slot.appendChild(renderCard(opp.tableau[idx], 'small'));
+    slot.onclick = () => executeSwap(idx);
+    container.appendChild(slot);
+  });
+  modal.classList.add('active');
+}
+function hideSwapModal() { document.getElementById('swap-modal').classList.remove('active'); }
+function cancelSwap() { hideSwapModal(); }
+
+// =========================================================================
+//   END / REMATCH MODAL
+// =========================================================================
+function showEndModal(won) {
+  const modal = document.getElementById('end-modal');
+  const content = document.getElementById('end-modal-content');
+  const title = document.getElementById('end-title');
+  const text = document.getElementById('end-text');
+  content.classList.remove('win', 'lose');
+  if (won) {
+    content.classList.add('win');
+    title.textContent = '🏆 GREEN IT CHAMPION! 🌍';
+    text.textContent = "Brilliant! You collected every Green Way card and you're saving the planet, one device at a time.";
+  } else {
+    content.classList.add('lose');
+    title.textContent = '😢 Better luck next time!';
+    text.textContent = oppName + ' got there first. Play again?';
+  }
+  modal.classList.add('active');
+}
+function hideEndModal() { document.getElementById('end-modal').classList.remove('active'); }
+
+function requestRematch() {
+  send({ type: 'rematch-request' });
+  hideEndModal();
+  // Wait for opponent to accept
+}
+
+function leaveGame() {
+  send({ type: 'leave' });
+  if (peer) peer.destroy();
+  window.location.reload();
+}
+
+// =========================================================================
+//   LOG
+// =========================================================================
+function pushLog(text, who) {
+  if (!state) return;
+  if (!state.log) state.log = [];
+  state.log.push({ text, who });
+  if (state.log.length > 30) state.log.shift();
+  renderLog();
+}
+
+function renderLog() {
+  if (!state || !state.log) return;
+  const el = document.getElementById('log-entries');
+  el.innerHTML = '';
+  state.log.slice(-8).forEach(entry => {
+    const div = document.createElement('div');
+    let cls = 'log-entry';
+    if (entry.who === myRole()) cls += ' me';
+    else if (entry.who === oppRole()) cls += ' opp';
+    div.className = cls;
+    div.textContent = entry.text;
+    el.appendChild(div);
+  });
+  el.scrollTop = el.scrollHeight;
+}
+
+// On guest, re-render log when state arrives
+const origRenderGame = renderGame;
+// (Log is rendered inside renderGame implicitly via state.log; ensure it's called.)
+
+// =========================================================================
+//   RULES MODAL
+// =========================================================================
+function showRules() { document.getElementById('rules-modal').classList.add('active'); }
+function hideRules() { document.getElementById('rules-modal').classList.remove('active'); }
+
+// Show rules on first load
+window.addEventListener('load', () => {
+  showRules();
+  // Auto-fill from URL room param
+  const urlCode = new URLSearchParams(window.location.search).get('room');
+  if (urlCode) {
+    document.getElementById('join-code').value = urlCode.toUpperCase();
+  }
+});
+
+// Patch renderGame to also call renderLog
+const _renderGame = renderGame;
+renderGame = function() { _renderGame(); renderLog(); };
+</script>
+</body>
+</html>
