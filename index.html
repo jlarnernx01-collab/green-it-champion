@@ -653,11 +653,26 @@
 
   .picker {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
     margin: 16px 0;
   }
-  .picker .slot { cursor: pointer; }
+  @media (max-width: 600px) { .picker { grid-template-columns: repeat(4, 1fr); } }
+  .picker .slot { cursor: pointer; min-height: 80px; }
+  .picker .slot-filled {
+    aspect-ratio: 2/3;
+    background: var(--slot);
+    border: 3px solid var(--slot-empty);
+    border-radius: 12px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 4px;
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .picker .slot-filled .mini-card {
+    font-size: 20px;
+  }
 
   .quick-rules {
     max-width: 900px;
@@ -826,7 +841,7 @@
 <div class="modal-back" id="swap-modal">
   <div class="modal">
     <h2>Block your opponent!</h2>
-    <p>Pick an empty slot on your opponent's board to drop this Wasteful card on. They'll have to clear it before they can win!</p>
+    <p>Pick any empty slot on your opponent's board (the red, shaking ones). They'll have to clear your wasteful card before they can win!</p>
     <div class="picker" id="swap-targets"></div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="cancelSwap()">Cancel</button>
@@ -877,7 +892,7 @@
       <ol>
         <li><strong>On your turn</strong>, click the deck (or the discard pile) to draw a card.</li>
         <li><strong>Green Way</strong> cards go on YOUR board. Click a glowing slot to place it.</li>
-        <li><strong>Wasteful</strong> cards can be used to <em>block</em> an empty slot on your opponent's board — they'll have to clear it before they can win!</li>
+        <li><strong>Wasteful</strong> cards can be dropped on <em>any empty slot</em> on your opponent's board to block their progress — they'll have to clear it before they can win!</li>
         <li>If a wasteful card is blocking one of YOUR slots, click it at the start of your turn to clear it (this uses your turn, no draw).</li>
         <li><strong>Stage 1 (Device)</strong> and <strong>Stage 2 (Action)</strong> must be a matching pair (e.g. Laptop + Reuse).</li>
         <li>💡 Click <strong>any card</strong> (on the board or in your hand) to learn <strong>why</strong> it's green or wasteful!</li>
@@ -1359,7 +1374,6 @@ function handleAction(action, fromRole) {
       const slot = action.slot;
       if (slot < 0 || slot > 7) return;
       if (opp.tableau[slot] !== null) return;        // must be empty
-      if (state.drawn.stage !== slot + 1) return;    // stage must match
       opp.tableau[slot] = state.drawn;
       pushLog(player.name + ' blocked ' + opp.name + "'s stage " + (slot+1) + ' with ' + state.drawn.name + '! 😱', fromRole);
       state.drawn = null;
@@ -1600,12 +1614,11 @@ function findPlaceableSlots(player, card) {
 }
 
 function findBlockTargets(opp, wasteCard) {
-  // Wasteful cards now BLOCK empty slots of matching stage on the opponent's board.
-  // No device-matching constraint — any wasteful of the right stage can block.
+  // Wasteful cards can BLOCK any empty slot on the opponent's board.
+  // (Stage 8 / Champion slot is included — block the win!)
   const targets = [];
   for (let i = 0; i < 8; i++) {
     if (opp.tableau[i] !== null) continue;     // slot already has something
-    if (wasteCard.stage !== i + 1) continue;   // stage must match the slot
     targets.push(i);
   }
   return targets;
@@ -1705,21 +1718,40 @@ function showBlockModal() {
   container.innerHTML = '';
   const opp = state.players[oppRole()];
   const targets = findBlockTargets(opp, state.drawn);
-  targets.forEach(idx => {
-    const slot = document.createElement('div');
-    slot.className = 'slot swap-target';
-    // Show what stage they're blocking
-    const num = document.createElement('div');
-    num.className = 'stage-num';
-    num.textContent = idx + 1;
-    const label = document.createElement('div');
-    label.className = 'stage-label';
-    label.textContent = STAGE_LABELS[idx];
-    slot.appendChild(num);
-    slot.appendChild(label);
-    slot.onclick = () => executeBlock(idx);
-    container.appendChild(slot);
-  });
+
+  // Render all 8 of opp's slots — empty ones are tappable, filled ones are dimmed
+  for (let i = 0; i < 8; i++) {
+    if (targets.includes(i)) {
+      const slot = document.createElement('div');
+      slot.className = 'slot swap-target';
+      const num = document.createElement('div');
+      num.className = 'stage-num';
+      num.textContent = i + 1;
+      const label = document.createElement('div');
+      label.className = 'stage-label';
+      label.textContent = STAGE_LABELS[i];
+      slot.appendChild(num);
+      slot.appendChild(label);
+      slot.onclick = () => executeBlock(i);
+      container.appendChild(slot);
+    } else {
+      // Filled slot — show dimmed card or placeholder
+      const slot = document.createElement('div');
+      slot.className = 'slot-filled';
+      if (opp.tableau[i]) {
+        slot.appendChild(renderCard(opp.tableau[i], 'small'));
+      } else {
+        const num = document.createElement('div');
+        num.style.fontFamily = "'Fraunces', serif";
+        num.style.fontSize = '20px';
+        num.style.fontWeight = '900';
+        num.textContent = i + 1;
+        slot.appendChild(num);
+      }
+      container.appendChild(slot);
+    }
+  }
+
   modal.classList.add('active');
 }
 function hideBlockModal() { document.getElementById('swap-modal').classList.remove('active'); }
